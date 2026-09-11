@@ -115,7 +115,7 @@ export default function PrdInput({ onStart, runs, onOpenRun, health }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs text-slate-400 font-mono uppercase tracking-wider">Max / task</label>
+              <label className="text-xs text-slate-400 font-mono uppercase tracking-wider">Max fix iterations / task</label>
               <Input
                 type="number"
                 value={maxPerTask}
