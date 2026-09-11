@@ -34,6 +34,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     },
     "project": {"name": "omega-project", "output_dir": "./generated"},
     "sandbox": {"type": "process", "timeout": 120},
+    "agent": {"num_tasks": 5},
 }
 
 

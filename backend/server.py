@@ -25,7 +25,7 @@ mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
-RUNS_DIR = Path("/app/data/omega_runs")
+RUNS_DIR = Path("/home/columbo/ExtData/OmageRuns")
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="Omega Framework API")
@@ -49,6 +49,7 @@ class StartRunRequest(BaseModel):
     sandbox_type: str = "process"
     num_tasks: int = 5
     refine_iterations: int = 2
+    num_tasks: int = 5
 
 
 class StatusCheck(BaseModel):
@@ -93,8 +94,16 @@ async def start_run(req: StartRunRequest):
     cfg = OmegaConfig(output_dir=str(output_dir))
     cfg.project_name = project_name
     cfg.data["sandbox"]["type"] = req.sandbox_type
+<<<<<<< HEAD
     cfg.data["iteration"]["num_tasks"] = max(1, req.num_tasks)
     cfg.data["iteration"]["refine_iterations"] = max(0, req.refine_iterations)
+=======
+    cfg.data["iteration"]["max_per_task"] = req.max_per_task
+    cfg.data["iteration"]["max_global"] = req.max_global
+    cfg.data["iteration"]["refine_iterations"] = req.refine_iterations
+    cfg.data["agent"] = cfg.data.get("agent", {})
+    cfg.data["agent"]["num_tasks"] = max(1, req.num_tasks)
+>>>>>>> 5c716d7 (Fix LLM provider connection and pipeline parsing bugs)
 
     run_doc = {
         "id": run_id,

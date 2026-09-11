@@ -67,7 +67,13 @@ def is_schema_echo(obj: dict) -> bool:
 
 
 def extract_code_blocks(content: str) -> List[FileArtifact]:
-    """Parse ```lang:path\n...``` or ```path\n...``` fenced blocks."""
+    """Parse ```lang:path\n...``` or ```lang\n...``` or ```path\n...``` fenced blocks.
+    
+    Supports:
+    - ```lang:path\nbody\n``` (explicit language and path)
+    - ```lang\nbody\n``` (language only, path defaults to lang+extension)
+    - ```path\nbody\n``` (path only, language inferred from extension)
+    """
     artifacts: List[FileArtifact] = []
     pattern = re.compile(r"```([^\n`]*)\n(.*?)```", re.DOTALL)
     for header, body in pattern.findall(content or ""):
@@ -81,7 +87,12 @@ def extract_code_blocks(content: str) -> List[FileArtifact]:
             lang = header
         path = path.strip()
         if not path:
-            continue
+            # Use lang as filename with appropriate extension
+            ext_map = {"python": ".py", "toml": ".toml", "json": ".json",
+                       "md": ".md", "markdown": ".md", "yaml": ".yaml",
+                       "yml": ".yaml", "sh": ".sh", "bash": ".sh",
+                       "js": ".js", "ts": ".ts", "css": ".css", "html": ".html"}
+            path = f"{lang}{ext_map.get(lang, '.txt')}" if lang else "untitled.txt"
         artifacts.append(FileArtifact(path=path, content=body, language=lang.strip()))
     return artifacts
 
@@ -136,10 +147,16 @@ class ArchitectAgent(BaseAgent):
 
 
 class PlannerAgent(BaseAgent):
+<<<<<<< HEAD
     def plan(self, architecture: dict, prd: str, num_tasks: int = None) -> Tuple[Optional[dict], AgentResult]:
         ask = f" Produce exactly {num_tasks} tasks." if num_tasks else ""
         res = self.run(
             f"Architecture JSON:\n{json.dumps(architecture)}\n\nProduce the KanbanBacklog JSON.{ask}",
+=======
+    def plan(self, architecture: dict, prd: str, num_tasks: int = 5) -> Tuple[Optional[dict], AgentResult]:
+        res = self.run(
+            f"Architecture JSON:\n{json.dumps(architecture)}\n\nProduce the KanbanBacklog JSON with exactly {num_tasks} tasks.",
+>>>>>>> 5c716d7 (Fix LLM provider connection and pipeline parsing bugs)
             context={"architecture": architecture, "prd": prd, "num_tasks": num_tasks},
         )
         if not res.ok:
@@ -155,14 +172,21 @@ class PlannerAgent(BaseAgent):
             obj = extract_json(res2.raw) or obj
             res = res2
         res.parsed = obj
+        # Normalize filename field: some models return filename as a list,
+        # but the Task model expects a string. Join lists into a single string.
+        for task in obj.get("tasks", []):
+            fn = task.get("filename")
+            if isinstance(fn, list):
+                task["filename"] = ", ".join(fn)
         return obj, res
 
 
 class CoderAgent(BaseAgent):
-    def generate(self, task: dict, architecture: dict, context_extra: str = "") -> Tuple[List[FileArtifact], AgentResult]:
+    def generate(self, task: dict, architecture: dict, context_extra: str = "", iterations: int = 1) -> Tuple[List[FileArtifact], AgentResult]:
+        task_info = f"Task ID: {task.get('id','')}\nTask title: {task.get('title','')}\nTask filename: {task.get('filename','')}\n"
         res = self.run(
-            f"Task:\n{json.dumps(task)}\n\n{context_extra}\nReturn the code as fenced blocks.",
-            context={"task": task, "architecture": architecture},
+            f"Task:\n{task_info}\n{json.dumps(task)}\n\n{context_extra}\nReturn the code ONLY as fenced blocks in this EXACT format: ```lang:relative/path.py\n<code>```. The path MUST match the task filename. Never use ```python\n...``` without an explicit path.",
+            context={"task": task, "architecture": architecture, "iterations": iterations},
         )
         if not res.ok:
             return [], res
@@ -184,13 +208,13 @@ class ReviewerAgent(BaseAgent):
 
 class FixerAgent(BaseAgent):
     def fix(self, task: dict, files: Dict[str, str], issues: List[dict],
-            errors: str = "") -> Tuple[List[FileArtifact], AgentResult]:
+            errors: str = "", iterations: int = 1) -> Tuple[List[FileArtifact], AgentResult]:
         joined = "\n\n".join(f"### {p}\n{c}" for p, c in files.items())
         res = self.run(
             f"Task:\n{json.dumps(task)}\n\nCurrent files:\n{joined}\n\n"
             f"Reviewer issues:\n{json.dumps(issues)}\n\nBuild errors:\n{errors}\n\n"
             "Return the corrected code as fenced blocks.",
-            context={"task": task, "architecture": {}, "files": files, "issues": issues, "errors": errors},
+            context={"task": task, "architecture": {}, "files": files, "issues": issues, "errors": errors, "iterations": iterations},
         )
         if not res.ok:
             return [], res
@@ -232,6 +256,7 @@ class AgentFactory:
         return agent
 
     def ensure_baseline(self) -> None:
+        self._cache.clear()
         self.get("architect")
         self.get("coder")
 

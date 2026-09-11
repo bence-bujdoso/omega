@@ -18,7 +18,7 @@ logging:
 
 models:
   default:
-    api_key_env: OPENROUTER_API_KEY
+    api_key_env: sk-10538b651eaa9c89-wo2ykr-a074f5ca
     base_url: http://localhost:20128/v1
     model: 9router-combo
     provider: openai
@@ -38,3 +38,6 @@ project:
 sandbox:
   type: process
   timeout: 120
+
+agent:
+  num_tasks: 5

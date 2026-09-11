@@ -36,6 +36,7 @@ class OmegaPipeline:
         self.prompts = build_default_registry()
         self.router = ModelRouter(config.models)
         self.model_registry = ModelRegistry(config.models, api_key=config.api_key())
+        self.num_tasks = config.data.get("agent", {}).get("num_tasks", 5)
         self._sync_logs: List[dict] = []
         self.factory = AgentFactory(
             registry=None, prompt_registry=self.prompts, router=self.router,
@@ -141,8 +142,12 @@ class OmegaPipeline:
         await self._emit_state()
         await asyncio.sleep(0.4)
         agent = self.factory.get("planner")
+<<<<<<< HEAD
         num_tasks = int(self.config.iteration.get("num_tasks", 5) or 5)
         raw_plan, res = await asyncio.to_thread(agent.plan, self.state.architecture, self.prd, num_tasks)
+=======
+        raw_plan, res = await asyncio.to_thread(agent.plan, self.state.architecture, self.prd, self.num_tasks)
+>>>>>>> 5c716d7 (Fix LLM provider connection and pipeline parsing bugs)
         if self.config.data["logging"].get("log_raw_response"):
             await self.log("DEBUG", "planning", f"Planner raw response ({res.provider})",
                            raw_response=(res.raw or res.error or "")[:6000])
@@ -201,7 +206,11 @@ class OmegaPipeline:
 
         for idx, task in enumerate(backlog.tasks):
             if self._stop:
+<<<<<<< HEAD
                 await self.log("WARNING", "coding", "Stop requested; halting build")
+=======
+                await self.log("WARNING", "coding", "Stopped; stopping")
+>>>>>>> 5c716d7 (Fix LLM provider connection and pipeline parsing bugs)
                 break
             self.state.current_task_idx = idx
             self._set_task(idx, status="IN_PROGRESS")
@@ -210,6 +219,7 @@ class OmegaPipeline:
             await self._emit_state()
             await asyncio.sleep(0.3)
 
+<<<<<<< HEAD
             coder = self.factory.get(task.agent if task.agent in ("coder", "tester", "debugger") else "coder")
             arts, res = await asyncio.to_thread(
                 coder.generate, task.model_dump(), arch, self._context_blurb(accumulated))
@@ -217,6 +227,56 @@ class OmegaPipeline:
             if not arts:
                 self._set_task(idx, status="FAILED", iterations=1, error=res.error or "no code produced")
                 await self.log("ERROR", "coding", f"{task.id} produced no artifacts", task_id=task.id)
+=======
+            success = False
+            issues: List[dict] = []
+            errors = ""
+            for it in range(1, max_per_task + 1):
+                self.state.iteration_count += 1
+                self._set_task(idx, iterations=it)
+
+                if it == 1:
+                    self.state.active_agent = task.agent
+                    coder = self.factory.get(task.agent if task.agent in ("coder", "tester", "debugger") else "coder")
+                    arts, res = await asyncio.to_thread(
+                        coder.generate, task.model_dump(), arch, self._context_blurb(accumulated), it
+                    )
+                else:
+                    self.state.active_agent = "fixer"
+                    await self.log("INFO", "coding", f"Fixer iteration {it} on {task.id}", task_id=task.id, iteration=it)
+                    fixer = self.factory.get("fixer")
+                    cur = {task.filename: accumulated.get(task.filename, "")}
+                    arts, res = await asyncio.to_thread(
+                        fixer.fix, task.model_dump(), cur, issues, errors, it
+                    )
+
+                if not arts:
+                    errors = res.error or "no code produced"
+                    await self.log("WARNING", "coding", f"{task.id} produced no artifacts", task_id=task.id, iteration=it)
+                    continue
+                for a in arts:
+                    accumulated[a.path] = a.content
+                await self.log("INFO", "coding",
+                               f"{task.id} generated {', '.join(a.path for a in arts)} ({res.provider})",
+                               task_id=task.id, iteration=it)
+
+                # validate in sandbox
+                self.sandbox.setup(self.config.output_dir, accumulated)
+                exec_out = await self._validate(accumulated, task)
+                errors = (exec_out.stderr or exec_out.stdout)[-4000:]
+                if exec_out.success:
+                    if task.reviews:
+                        await self._run_review(task, accumulated, passing=True)
+                    self._set_task(idx, status="DONE")
+                    self.state.completed_tasks += 1
+                    success = True
+                    await self.log("INFO", "coding", f"{task.id} validated & DONE (iter {it})",
+                                   task_id=task.id, iteration=it)
+                    await self._emit_state()
+                    break
+                # failed -> review then fix (if auto_fix)
+                self._set_task(idx, status="REVIEW")
+>>>>>>> 5c716d7 (Fix LLM provider connection and pipeline parsing bugs)
                 await self._emit_state()
                 continue
 
@@ -357,9 +417,15 @@ class OmegaPipeline:
 
             self.state.active_agent = "fixer"
             await self.log("WARNING", "refinement",
+<<<<<<< HEAD
                            f"Iteration {iteration_no}: applying {len(issues)} improvement(s) to the whole code",
                            iteration=iteration_no, details=issues)
             arts, _ = await asyncio.to_thread(fixer.fix, synthetic.model_dump(), files, issues)
+=======
+                           f"Pass {pass_no}/{n}: applying {len(issues)} improvement(s)",
+                           iteration=pass_no, details=issues)
+            arts, _ = await asyncio.to_thread(fixer.fix, synthetic.model_dump(), files, issues, errors="", iterations=pass_no)
+>>>>>>> 5c716d7 (Fix LLM provider connection and pipeline parsing bugs)
             if arts:
                 for a in arts:
                     files[a.path] = a.content

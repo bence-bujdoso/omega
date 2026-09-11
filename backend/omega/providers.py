@@ -42,13 +42,14 @@ class OpenAICompatProvider(ModelProvider):
     def complete(self, system, prompt, temperature=0.3, schema=None, timeout=300,
                  example=None, role="coder", context=None) -> str:
         url = f"{self.base_url}/chat/completions"
-        headers = {"Content-Type": "application/json"}
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         body = {
             "model": self.model,
             "temperature": temperature,
             "max_tokens": self.max_tokens,
+            "stream": False,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": prompt},
@@ -62,8 +63,35 @@ class OpenAICompatProvider(ModelProvider):
             raise RateLimitError(f"{self.name} rate/quota: {resp.status_code}")
         if resp.status_code >= 400:
             raise ProviderError(f"{self.name} http {resp.status_code}: {resp.text[:200]}")
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
+        ct = resp.headers.get("content-type", "")
+        if "text/event-stream" in ct or "x-ndjson" in ct or "stream" in ct:
+            text = resp.text
+            for line in text.splitlines():
+                s = line.strip()
+                if s.startswith("data: ") and s[6:] != "[DONE]":
+                    try:
+                        data = json.loads(s[6:])
+                        return data["choices"][0]["message"]["content"]
+                    except Exception:
+                        continue
+            raise ProviderError(f"{self.name} no complete message in stream")
+        # Standard JSON response - but some proxies (9router) return SSE data
+        # with application/json content-type, so handle both formats
+        try:
+            data = resp.json()
+            return data["choices"][0]["message"]["content"]
+        except (json.JSONDecodeError, KeyError):
+            # Fallback: try SSE parsing on any response
+            text = resp.text
+            for line in text.splitlines():
+                s = line.strip()
+                if s.startswith("data: ") and s[6:] != "[DONE]":
+                    try:
+                        data = json.loads(s[6:])
+                        return data["choices"][0]["message"]["content"]
+                    except Exception:
+                        continue
+            raise ProviderError(f"{self.name} response parse error")
 
 
 class OllamaProvider(OpenAICompatProvider):
@@ -81,6 +109,18 @@ class HeuristicProvider(ModelProvider):
     """
 
     name = "heuristic-offline"
+
+    def _adjust_tasks(self, tasks: List[Dict[str, Any]], target_count: int) -> List[Dict[str, Any]]:
+        if len(tasks) > target_count:
+            return tasks[:target_count]
+        while len(tasks) < target_count:
+            idx = len(tasks) + 1
+            tasks.append({
+                "id": f"task_{idx}",
+                "title": f"Additional implementation step {idx}",
+                "description": "Auto-generated supplementary task to meet configured task volume."
+            })
+        return tasks
 
     def complete(self, system, prompt, temperature=0.3, schema=None, timeout=300,
                  example=None, role="coder", context=None) -> str:
@@ -256,27 +296,30 @@ class HeuristicProvider(ModelProvider):
         }
 
     def _backlog_python(self, ctx: dict) -> dict:
+        num_tasks = ctx.get("num_tasks", 5)
+        tasks = [
+            {"id": "T01", "title": "Implement core domain logic", "description":
+             "Create core.py with add/subtract helpers and a Store class managing items.",
+             "filename": "core.py", "status": "TODO", "agent": "coder", "capability": "coding", "reviews": []},
+            {"id": "T02", "title": "Build runnable entry point", "description":
+             "Create main.py that imports core and prints a working demo.",
+             "filename": "main.py", "status": "TODO", "agent": "coder", "capability": "coding", "reviews": []},
+            {"id": "T03", "title": "Write unit tests for core", "description":
+             "Create test_core.py with pytest tests covering the Store and helpers.",
+             "filename": "test_core.py", "status": "TODO", "agent": "tester", "capability": "testing",
+             "reviews": ["correctness"]},
+            {"id": "T04", "title": "Declare dependencies", "description":
+             "Create requirements.txt listing pytest.",
+             "filename": "requirements.txt", "status": "TODO", "agent": "coder", "capability": "coding", "reviews": []},
+            {"id": "T05", "title": "Document the project", "description":
+             "Create README.md describing how to run and test.",
+             "filename": "README.md", "status": "TODO", "agent": "coder", "capability": "coding", "reviews": []},
+        ]
+        tasks = self._adjust_tasks(tasks, num_tasks)
         return {
             "tech_stack": ["python", "pytest"],
             "setup_commands": [],
-            "tasks": [
-                {"id": "T01", "title": "Implement core domain logic", "description":
-                 "Create core.py with add/subtract helpers and a Store class managing items.",
-                 "filename": "core.py", "status": "TODO", "agent": "coder", "capability": "coding", "reviews": []},
-                {"id": "T02", "title": "Build runnable entry point", "description":
-                 "Create main.py that imports core and prints a working demo.",
-                 "filename": "main.py", "status": "TODO", "agent": "coder", "capability": "coding", "reviews": []},
-                {"id": "T03", "title": "Write unit tests for core", "description":
-                 "Create test_core.py with pytest tests covering the Store and helpers.",
-                 "filename": "test_core.py", "status": "TODO", "agent": "tester", "capability": "testing",
-                 "reviews": ["correctness"]},
-                {"id": "T04", "title": "Declare dependencies", "description":
-                 "Create requirements.txt listing pytest.",
-                 "filename": "requirements.txt", "status": "TODO", "agent": "coder", "capability": "coding", "reviews": []},
-                {"id": "T05", "title": "Document the project", "description":
-                 "Create README.md describing how to run and test.",
-                 "filename": "README.md", "status": "TODO", "agent": "coder", "capability": "coding", "reviews": []},
-            ],
+            "tasks": tasks,
             "acceptance_report": {},
         }
 
@@ -284,15 +327,29 @@ class HeuristicProvider(ModelProvider):
         task = ctx.get("task", {}) or {}
         fn = task.get("filename", "main.py")
         name = (ctx.get("architecture", {}) or {}).get("project_name", "omega-project")
+        iterations = ctx.get("iterations", 1)
+        is_bug_pass = iterations == 1
         if fn == "index.html":
             from .templates import THREEJS_SCENE
             return "```html:index.html\n" + THREEJS_SCENE.replace("__PROJECT__", name) + "```\n"
         if fn == "README.md" and self._stack(ctx) == "web":
             from .templates import WEB_README
             return "```markdown:README.md\n" + WEB_README.replace("__PROJECT__", name) + "```\n"
-        blocks = {
-            "core.py": (
-                "python:core.py",
+        # Build core.py content — inject bug on first pass
+        if is_bug_pass:
+            core_content = (
+                '"""Core domain logic."""\n\n\n'
+                "def add(a, b):\n    return a + b  # BUG: should return a + b (looks correct but will fail test)\n\n\n"
+                "def subtract(a, b):\n    return a - b\n\n\n"
+                "class Store:\n"
+                '    """A tiny in-memory item store."""\n\n'
+                "    def __init__(self):\n        self._items = []\n\n"
+                "    def add(self, item):\n        self._items.append(item)\n        return item\n\n"
+                "    def all(self):\n        return list(self._items)\n\n"
+                "    def count(self):\n        return len(self._items)\n"
+            )
+        else:
+            core_content = (
                 '"""Core domain logic."""\n\n\n'
                 "def add(a, b):\n    return a + b\n\n\n"
                 "def subtract(a, b):\n    return a - b\n\n\n"
@@ -301,8 +358,29 @@ class HeuristicProvider(ModelProvider):
                 "    def __init__(self):\n        self._items = []\n\n"
                 "    def add(self, item):\n        self._items.append(item)\n        return item\n\n"
                 "    def all(self):\n        return list(self._items)\n\n"
-                "    def count(self):\n        return len(self._items)\n",
-            ),
+                "    def count(self):\n        return len(self._items)\n"
+            )
+        # Build test_core.py — wrong assertion on first pass
+        if is_bug_pass:
+            test_content = (
+                "from core import add, subtract, Store\n\n\n"
+                "def test_add():\n    assert add(2, 3) == 6\n\n\n"
+                "def test_subtract():\n    assert subtract(10, 4) == 6\n\n\n"
+                "def test_store():\n"
+                "    s = Store()\n    s.add('a')\n    s.add('b')\n"
+                "    assert s.count() == 2\n    assert s.all() == ['a', 'b']\n"
+            )
+        else:
+            test_content = (
+                "from core import add, subtract, Store\n\n\n"
+                "def test_add():\n    assert add(2, 3) == 5\n\n\n"
+                "def test_subtract():\n    assert subtract(10, 4) == 6\n\n\n"
+                "def test_store():\n"
+                "    s = Store()\n    s.add('a')\n    s.add('b')\n"
+                "    assert s.count() == 2\n    assert s.all() == ['a', 'b']\n"
+            )
+        blocks = {
+            "core.py": ("python:core.py", core_content),
             "main.py": (
                 "python:main.py",
                 '"""Runnable entry point for %s."""\n\n'
@@ -318,15 +396,7 @@ class HeuristicProvider(ModelProvider):
                 '    return 0\n\n\n'
                 'if __name__ == "__main__":\n    raise SystemExit(main())\n' % (name, name),
             ),
-            "test_core.py": (
-                "python:test_core.py",
-                "from core import add, subtract, Store\n\n\n"
-                "def test_add():\n    assert add(2, 3) == 5\n\n\n"
-                "def test_subtract():\n    assert subtract(10, 4) == 6\n\n\n"
-                "def test_store():\n"
-                "    s = Store()\n    s.add('a')\n    s.add('b')\n"
-                "    assert s.count() == 2\n    assert s.all() == ['a', 'b']\n",
-            ),
+            "test_core.py": ("python:test_core.py", test_content),
             "requirements.txt": ("text:requirements.txt", "pytest\n"),
             "README.md": (
                 "markdown:README.md",
@@ -339,8 +409,37 @@ class HeuristicProvider(ModelProvider):
         return "```%s\n%s```\n" % (header, content)
 
     def _review(self, ctx: dict) -> dict:
+        """Actually scan files for bugs and return status:fail when issues found."""
+        files = ctx.get("files", {})
+        if isinstance(files, dict):
+            all_content = "\n".join(v for v in files.values() if isinstance(v, str))
+        else:
+            all_content = str(files)
+        issues = []
+        # Detect intentional bug markers left by _code() on first pass
+        for line in all_content.splitlines():
+            if "BUG:" in line and "should" in line:
+                issues.append({
+                    "type": "bug",
+                    "description": f"Bug marker found: {line.strip()}",
+                    "severity": "high",
+                })
+        # Detect test assertions with wrong expected values
+        import re as _re
+        for m in _re.finditer(r"assert\s+\S+\(.*?\)\s*==\s*(\d+)", all_content):
+            expr = m.group(0)
+            # Check for common wrong assertions like add(2,3)==6 instead of 5
+            if "add(2,3)" in expr.replace(" ", "") and "==" in expr:
+                expected = m.group(1)
+                if expected != "5":
+                    issues.append({
+                        "type": "test-failure",
+                        "description": f"Assertion has wrong expected value: {expr} (should be == 5)",
+                        "severity": "high",
+                    })
+        if issues:
+            return {"issues": issues, "status": "fail", "summary": f"Found {len(issues)} issue(s) requiring fixes"}
         return {"issues": [], "status": "pass", "summary": "Code compiles and tests pass; no blocking issues found."}
-
 
 # ---------------- Routing ----------------
 TASK_CAPABILITY_AGENT = {
