@@ -132,10 +132,41 @@ class HeuristicProvider(ModelProvider):
             return self._architecture_web(ctx)
         return self._architecture_python(ctx)
 
+    @staticmethod
+    def _adjust_tasks(tasks: list, n: int, extra_stub) -> list:
+        if not n or n <= 0:
+            return tasks
+        if len(tasks) > n:
+            return tasks[:n]
+        k = len(tasks)
+        while len(tasks) < n:
+            k += 1
+            tasks.append(extra_stub(k))
+        return tasks
+
     def _backlog(self, ctx: dict) -> dict:
+        n = ctx.get("num_tasks")
         if self._stack(ctx) == "web":
-            return self._backlog_web(ctx)
-        return self._backlog_python(ctx)
+            backlog = self._backlog_web(ctx)
+            backlog["tasks"] = self._adjust_tasks(backlog["tasks"], n, self._web_extra)
+        else:
+            backlog = self._backlog_python(ctx)
+            backlog["tasks"] = self._adjust_tasks(backlog["tasks"], n, self._python_extra)
+        return backlog
+
+    @staticmethod
+    def _python_extra(k: int) -> dict:
+        return {"id": f"T{k:02d}", "title": f"Add helper module {k}",
+                "description": f"Create helper module module_{k}.py exposing a small utility function.",
+                "filename": f"module_{k}.py", "status": "TODO", "agent": "coder",
+                "capability": "coding", "reviews": []}
+
+    @staticmethod
+    def _web_extra(k: int) -> dict:
+        return {"id": f"T{k:02d}", "title": f"Scene detail pass {k}",
+                "description": "Refine geometry, materials and lighting in index.html.",
+                "filename": "index.html", "status": "TODO", "agent": "coder",
+                "capability": "coding", "reviews": []}
 
     def _architecture_web(self, ctx: dict) -> dict:
         prd = ctx.get("prd", "")

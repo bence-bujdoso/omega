@@ -141,13 +141,17 @@ class OmegaPipeline:
         await self._emit_state()
         await asyncio.sleep(0.4)
         agent = self.factory.get("planner")
-        raw_plan, res = await asyncio.to_thread(agent.plan, self.state.architecture, self.prd)
+        num_tasks = int(self.config.iteration.get("num_tasks", 5) or 5)
+        raw_plan, res = await asyncio.to_thread(agent.plan, self.state.architecture, self.prd, num_tasks)
         if self.config.data["logging"].get("log_raw_response"):
             await self.log("DEBUG", "planning", f"Planner raw response ({res.provider})",
                            raw_response=(res.raw or res.error or "")[:6000])
         if not raw_plan or not raw_plan.get("tasks"):
             raise PipelineError("Empty plan (0 tasks) is invalid")
         tasks = [self._normalize_task(t, i) for i, t in enumerate(raw_plan.get("tasks", []))]
+        # honor requested task count as a safety clamp (heuristic already targets it)
+        if num_tasks and len(tasks) > num_tasks:
+            tasks = tasks[:num_tasks]
         backlog = KanbanBacklog(
             tech_stack=raw_plan.get("tech_stack", []),
             setup_commands=raw_plan.get("setup_commands", []),
@@ -185,91 +189,63 @@ class OmegaPipeline:
     async def _phase_coding(self, backlog: KanbanBacklog):
         self.state.status = "coding"
         self.state.phase = "coding"
-        max_global = self.config.iteration.get("max_global", 30)
-        max_per_task = self.config.iteration.get("max_per_task", 30)
-        auto_fix = self.config.iteration.get("auto_fix", True)
         accumulated: Dict[str, str] = {}
         arch = self.state.architecture or {}
-        tech = arch.get("tech_stack", {})
 
         # run setup commands (safe argv, may be empty)
         for cmd in backlog.setup_commands:
             await self.log("INFO", "coding", f"Setup: {cmd}")
 
+        await self.log("INFO", "coding",
+                       f"Iteration 1: building product from {len(backlog.tasks)} task(s)")
+
         for idx, task in enumerate(backlog.tasks):
-            if self._stop or self.state.iteration_count >= max_global:
-                await self.log("WARNING", "coding", "Global iteration budget reached; stopping")
+            if self._stop:
+                await self.log("WARNING", "coding", "Stop requested; halting build")
                 break
             self.state.current_task_idx = idx
             self._set_task(idx, status="IN_PROGRESS")
             self.state.active_agent = task.agent
             await self.log("INFO", "coding", f"{task.id} {task.title} -> {task.filename}", task_id=task.id)
             await self._emit_state()
-            await asyncio.sleep(0.35)
+            await asyncio.sleep(0.3)
 
-            success = False
-            issues: List[dict] = []
-            errors = ""
-            for it in range(1, max_per_task + 1):
-                if self.state.iteration_count >= max_global:
-                    break
-                self.state.iteration_count += 1
-                self._set_task(idx, iterations=it)
+            coder = self.factory.get(task.agent if task.agent in ("coder", "tester", "debugger") else "coder")
+            arts, res = await asyncio.to_thread(
+                coder.generate, task.model_dump(), arch, self._context_blurb(accumulated))
 
-                if it == 1:
-                    self.state.active_agent = task.agent
-                    coder = self.factory.get(task.agent if task.agent in ("coder", "tester", "debugger") else "coder")
-                    arts, res = await asyncio.to_thread(
-                        coder.generate, task.model_dump(), arch, self._context_blurb(accumulated))
-                else:
-                    self.state.active_agent = "fixer"
-                    await self.log("INFO", "coding", f"Fixer iteration {it} on {task.id}", task_id=task.id, iteration=it)
-                    fixer = self.factory.get("fixer")
-                    cur = {task.filename: accumulated.get(task.filename, "")}
-                    arts, res = await asyncio.to_thread(fixer.fix, task.model_dump(), cur, issues, errors)
-
-                if not arts:
-                    errors = res.error or "no code produced"
-                    await self.log("WARNING", "coding", f"{task.id} produced no artifacts", task_id=task.id, iteration=it)
-                    continue
-                for a in arts:
-                    accumulated[a.path] = a.content
-                await self.log("INFO", "coding",
-                               f"{task.id} generated {', '.join(a.path for a in arts)} ({res.provider})",
-                               task_id=task.id, iteration=it)
-
-                # validate in sandbox
-                self.sandbox.setup(self.config.output_dir, accumulated)
-                exec_out = await self._validate(accumulated, task)
-                errors = (exec_out.stderr or exec_out.stdout)[-4000:]
-                if exec_out.success:
-                    if task.reviews:
-                        await self._run_review(task, accumulated, passing=True)
-                    self._set_task(idx, status="DONE")
-                    self.state.completed_tasks += 1
-                    success = True
-                    await self.log("INFO", "coding", f"{task.id} validated & DONE (iter {it})",
-                                   task_id=task.id, iteration=it)
-                    await self._emit_state()
-                    break
-                # failed -> review then fix (if auto_fix)
-                self._set_task(idx, status="REVIEW")
+            if not arts:
+                self._set_task(idx, status="FAILED", iterations=1, error=res.error or "no code produced")
+                await self.log("ERROR", "coding", f"{task.id} produced no artifacts", task_id=task.id)
                 await self._emit_state()
-                review = await self._run_review(task, accumulated, passing=False)
-                issues = review.get("issues", []) if review else []
+                continue
+
+            for a in arts:
+                accumulated[a.path] = a.content
+            await self.log("INFO", "coding",
+                           f"{task.id} generated {', '.join(a.path for a in arts)} ({res.provider})",
+                           task_id=task.id)
+
+            self.sandbox.setup(self.config.output_dir, accumulated)
+            exec_out = await self._validate(accumulated, task)
+            if exec_out.success:
+                if task.reviews:
+                    await self._run_review(task, accumulated, passing=True)
+                self._set_task(idx, status="DONE", iterations=1)
+                self.state.completed_tasks += 1
+                await self.log("INFO", "coding", f"{task.id} validated & DONE", task_id=task.id)
+            else:
+                errors = (exec_out.stderr or exec_out.stdout)[-500:]
+                await self._run_review(task, accumulated, passing=False)
+                self._set_task(idx, status="FAILED", iterations=1, error=errors or "validation failed")
                 await self.log("WARNING", "coding",
-                               f"{task.id} validation failed (exit {exec_out.exit_code})",
-                               task_id=task.id, iteration=it, details=errors[-1200:])
-                if not auto_fix:
-                    break
-                await asyncio.sleep(0.3)
+                               f"{task.id} validation failed (exit {exec_out.exit_code}); "
+                               "will be addressed in refinement passes",
+                               task_id=task.id, details=errors)
+            await self._emit_state()
 
-            if not success:
-                self._set_task(idx, status="FAILED", error=(errors[-500:] or "validation failed"))
-                await self.log("ERROR", "coding", f"{task.id} FAILED after budget", task_id=task.id)
-                await self._emit_state()
-
-        # milestone: adaptive planner review
+        # first full build counts as iteration 1
+        self.state.iteration_count = 1
         await self._adaptive_review(backlog)
 
     async def _validate(self, accumulated: Dict[str, str], task):
@@ -334,26 +310,36 @@ class OmegaPipeline:
         return files
 
     async def _phase_refinement(self):
-        """Post-build quality loop: Reviewer critiques the whole product, Fixer improves, re-validate."""
+        """Whole-product improvement loop: each pass takes the entire code from the previous
+        iteration and improves it (Reviewer -> Fixer) to better match the PRD."""
         n = int(self.config.iteration.get("refine_iterations", 0) or 0)
         failed = [t for t in self.state.tasks if t.get("status") == "FAILED"]
-        if n <= 0 or failed:
+        if n <= 0:
             return
         self.state.status = "refining"
         self.state.phase = "refinement"
-        await self.log("INFO", "refinement", f"Starting {n} quality refinement pass(es)")
+        note = f" (also retrying {len(failed)} failed task(s))" if failed else ""
+        await self.log("INFO", "refinement",
+                       f"Starting {n} whole-product refinement iteration(s) against the PRD{note}")
         await self._emit_state()
 
-        synthetic = Task(id="REFINE", title="Overall product quality review",
-                         filename="*", agent="reviewer", capability="review",
-                         reviews=["quality"])
+        synthetic = Task(
+            id="REFINE",
+            title="Improve the entire product to better match the PRD",
+            description=("Review the ENTIRE codebase from the previous iteration and improve it so it "
+                         "best satisfies the following PRD. Keep the project runnable.\n\n=== PRD ===\n"
+                         + self.prd),
+            filename="*", agent="reviewer", capability="review", reviews=["prd-compliance"],
+        )
         reviewer = self.factory.get("reviewer")
         fixer = self.factory.get("fixer")
 
         for pass_no in range(1, n + 1):
+            iteration_no = pass_no + 1  # build was iteration 1
             self.state.active_agent = "reviewer"
-            await self.log("INFO", "refinement", f"Pass {pass_no}/{n}: reviewing product quality",
-                           iteration=pass_no)
+            await self.log("INFO", "refinement",
+                           f"Iteration {iteration_no} (refine pass {pass_no}/{n}): "
+                           "reviewing whole product against the PRD", iteration=iteration_no)
             await self._emit_state()
             await asyncio.sleep(0.35)
 
@@ -363,16 +349,16 @@ class OmegaPipeline:
 
             if not issues:
                 await self.log("INFO", "refinement",
-                               f"Pass {pass_no}/{n}: reviewer found no further improvements",
-                               iteration=pass_no, details=(review or {}).get("summary", ""))
+                               f"Iteration {iteration_no}: product already matches the PRD; no changes",
+                               iteration=iteration_no, details=(review or {}).get("summary", ""))
                 self.state.iteration_count += 1
                 await self._emit_state()
                 continue
 
             self.state.active_agent = "fixer"
             await self.log("WARNING", "refinement",
-                           f"Pass {pass_no}/{n}: applying {len(issues)} improvement(s)",
-                           iteration=pass_no, details=issues)
+                           f"Iteration {iteration_no}: applying {len(issues)} improvement(s) to the whole code",
+                           iteration=iteration_no, details=issues)
             arts, _ = await asyncio.to_thread(fixer.fix, synthetic.model_dump(), files, issues)
             if arts:
                 for a in arts:
@@ -380,8 +366,8 @@ class OmegaPipeline:
                 self.sandbox.setup(self.config.output_dir, files)
                 result = await self._validate(files, synthetic)
                 status = "validated" if result.success else f"validation failed (exit {result.exit_code})"
-                await self.log("INFO", "refinement", f"Pass {pass_no}/{n}: improvements {status}",
-                               iteration=pass_no)
+                await self.log("INFO", "refinement", f"Iteration {iteration_no}: improvements {status}",
+                               iteration=iteration_no)
             self.state.iteration_count += 1
             await self._emit_state()
 

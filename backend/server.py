@@ -47,8 +47,7 @@ class StartRunRequest(BaseModel):
     prd: str
     project_name: Optional[str] = None
     sandbox_type: str = "process"
-    max_per_task: int = 30
-    max_global: int = 30
+    num_tasks: int = 5
     refine_iterations: int = 2
 
 
@@ -94,9 +93,8 @@ async def start_run(req: StartRunRequest):
     cfg = OmegaConfig(output_dir=str(output_dir))
     cfg.project_name = project_name
     cfg.data["sandbox"]["type"] = req.sandbox_type
-    cfg.data["iteration"]["max_per_task"] = req.max_per_task
-    cfg.data["iteration"]["max_global"] = req.max_global
-    cfg.data["iteration"]["refine_iterations"] = req.refine_iterations
+    cfg.data["iteration"]["num_tasks"] = max(1, req.num_tasks)
+    cfg.data["iteration"]["refine_iterations"] = max(0, req.refine_iterations)
 
     run_doc = {
         "id": run_id,

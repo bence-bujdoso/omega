@@ -136,10 +136,11 @@ class ArchitectAgent(BaseAgent):
 
 
 class PlannerAgent(BaseAgent):
-    def plan(self, architecture: dict, prd: str) -> Tuple[Optional[dict], AgentResult]:
+    def plan(self, architecture: dict, prd: str, num_tasks: int = None) -> Tuple[Optional[dict], AgentResult]:
+        ask = f" Produce exactly {num_tasks} tasks." if num_tasks else ""
         res = self.run(
-            f"Architecture JSON:\n{json.dumps(architecture)}\n\nProduce the KanbanBacklog JSON.",
-            context={"architecture": architecture, "prd": prd},
+            f"Architecture JSON:\n{json.dumps(architecture)}\n\nProduce the KanbanBacklog JSON.{ask}",
+            context={"architecture": architecture, "prd": prd, "num_tasks": num_tasks},
         )
         if not res.ok:
             return None, res
@@ -149,7 +150,7 @@ class PlannerAgent(BaseAgent):
             res2 = self.run(
                 "The previous output was a JSON schema. Return a CONCRETE instance with a non-empty "
                 f"tasks array for this architecture:\n{json.dumps(architecture)}",
-                context={"architecture": architecture, "prd": prd, "force_example": True},
+                context={"architecture": architecture, "prd": prd, "num_tasks": num_tasks, "force_example": True},
             )
             obj = extract_json(res2.raw) or obj
             res = res2
