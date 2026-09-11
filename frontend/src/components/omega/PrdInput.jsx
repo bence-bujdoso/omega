@@ -31,7 +31,7 @@ export default function PrdInput({ onStart, runs, onOpenRun, health }) {
       sandbox_type: sandbox,
       max_per_task: Number(maxPerTask),
       max_global: Number(maxGlobal),
-      refine_iterations: Number(refineIterations),
+      refine_iterations: Math.max(0, parseInt(refineIterations, 10) || 0),
     });
     setBusy(false);
   };
@@ -137,25 +137,21 @@ export default function PrdInput({ onStart, runs, onOpenRun, health }) {
           </div>
 
           <div className="space-y-1.5 rounded-lg border border-purple-500/30 bg-purple-500/5 p-3">
-            <div className="flex items-center justify-between">
-              <label className="text-xs text-purple-300 font-mono uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" /> Refinement passes
-              </label>
-              <span className="text-sm font-mono text-purple-300" data-testid="refine-value">{refineIterations}</span>
-            </div>
-            <input
-              type="range"
+            <label className="text-xs text-purple-300 font-mono uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" /> Refinement passes
+            </label>
+            <Input
+              type="number"
               min="0"
-              max="10"
               step="1"
               value={refineIterations}
               onChange={(e) => setRefineIterations(e.target.value)}
-              className="w-full accent-purple-500"
-              data-testid="refine-iterations-slider"
+              className="bg-[#06070B] border-purple-500/40 text-purple-100 font-mono focus-visible:ring-purple-400"
+              data-testid="refine-iterations-input"
             />
             <p className="text-[11px] text-slate-500 leading-relaxed">
               After the build, the Reviewer + Fixer polish the whole product this many times to lift
-              overall quality. 0 = ship as built.
+              overall quality. Any positive number is allowed; 0 = ship as built.
             </p>
           </div>
 
