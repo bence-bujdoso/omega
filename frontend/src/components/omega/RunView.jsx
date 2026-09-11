@@ -6,13 +6,15 @@ import ArchitectureView from "./ArchitectureView";
 import LogStream from "./LogStream";
 import FileExplorer from "./FileExplorer";
 import ConfigPanel from "./ConfigPanel";
-import { LayoutGrid, Boxes, Terminal, FolderTree, Settings2 } from "lucide-react";
+import PromptAnalytics from "./PromptAnalytics";
+import { LayoutGrid, Boxes, Terminal, FolderTree, Settings2, BarChart3 } from "lucide-react";
 
 const TABS = [
   { key: "kanban", label: "Kanban", icon: LayoutGrid },
   { key: "architecture", label: "Architecture", icon: Boxes },
   { key: "logs", label: "Logs", icon: Terminal },
   { key: "files", label: "Files", icon: FolderTree },
+  { key: "prompts", label: "Prompts", icon: BarChart3 },
   { key: "config", label: "Config", icon: Settings2 },
 ];
 
@@ -47,6 +49,9 @@ export default function RunView({ run, logs, files, currentId, onStop }) {
         </TabsContent>
         <TabsContent value="files" className="mt-5">
           <FileExplorer files={files} currentId={currentId} />
+        </TabsContent>
+        <TabsContent value="prompts" className="mt-5">
+          <PromptAnalytics run={run} />
         </TabsContent>
         <TabsContent value="config" className="mt-5">
           <ConfigPanel run={run} />

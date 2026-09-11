@@ -116,6 +116,7 @@ class ProjectState(BaseModel):
     completed_tasks: int = 0
     total_tasks: int = 0
     iteration_count: int = 0
+    prompt_stats: Dict[str, Any] = Field(default_factory=dict)
     started_at: str = Field(default_factory=_now_iso)
     finished_at: Optional[str] = None
     error: Optional[str] = None

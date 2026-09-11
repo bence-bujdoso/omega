@@ -120,7 +120,7 @@ async def start_run(req: StartRunRequest):
     async def on_state(state: dict):
         update = {k: state[k] for k in (
             "status", "phase", "active_agent", "architecture", "tasks",
-            "completed_tasks", "total_tasks", "iteration_count", "error", "finished_at",
+            "completed_tasks", "total_tasks", "iteration_count", "prompt_stats", "error", "finished_at",
         ) if k in state}
         await db.omega_runs.update_one({"id": run_id}, {"$set": update})
 

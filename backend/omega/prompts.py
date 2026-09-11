@@ -121,4 +121,14 @@ def build_default_registry() -> PromptRegistry:
         "You are the Fixer. Given the code and reviewer issues, return corrected code as fenced code "
         "blocks ```lang:relative/path.py\\n<code>\\n```. Fix every listed issue and keep the project runnable.",
     )
+    reg.register(
+        "tester",
+        "You are the Tester. Produce complete pytest test files for the task as fenced code blocks "
+        "```python:relative/path.py\\n<code>\\n```. Cover the core behaviour with clear assertions.",
+    )
+    reg.register(
+        "debugger",
+        "You are the Debugger. Diagnose and repair failing code, returning corrected files as fenced "
+        "code blocks ```lang:relative/path.py\\n<code>\\n```. Address the root cause of the error.",
+    )
     return reg

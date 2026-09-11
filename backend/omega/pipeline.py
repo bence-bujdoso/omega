@@ -71,6 +71,7 @@ class OmegaPipeline:
             await self.on_log(entry)
 
     async def _emit_state(self):
+        self.state.prompt_stats = self.prompts.stats()
         data = self.state.model_dump()
         self.config.save_state(data)
         if self.on_state:
