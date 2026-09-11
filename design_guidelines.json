@@ -1,0 +1,136 @@
+{
+  "project_name": "Omega Framework - Multi-Agent AI Pipeline System",
+  "app_type": "dashboard",
+  "theme": {
+    "default_mode": "dark",
+    "background": "#090A0F",
+    "surface": "#12141D",
+    "surface_secondary": "#1A1D2B",
+    "border_color": "#2A2E43",
+    "text_primary": "#F1F5F9",
+    "text_secondary": "#94A3B8",
+    "accent_primary": "#38BDF8",
+    "accent_success": "#10B981",
+    "accent_warning": "#F59E0B",
+    "accent_error": "#EF4444",
+    "accent_purple": "#8B5CF6",
+    "accent_cyan": "#06B6D4"
+  },
+  "typography": {
+    "heading_font": "Outfit, Cabinet Grotesk, sans-serif",
+    "body_font": "IBM Plex Sans, Inter, sans-serif",
+    "mono_font": "JetBrains Mono, Fira Code, monospace",
+    "scale": {
+      "h1": "text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight",
+      "h2": "text-2xl sm:text-3xl font-semibold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-medium",
+      "card_title": "text-base sm:text-lg font-semibold",
+      "body": "text-sm sm:text-base leading-relaxed",
+      "mono_small": "font-mono text-xs sm:text-sm tracking-tight",
+      "badge": "text-xs font-mono uppercase tracking-wider"
+    },
+    "forbidden_fonts": ["Space Grotesk"]
+  },
+  "colors": {
+    "archetype": "THE PERFORMANCE PRO / CYBERDROME COMMAND CENTER",
+    "palette": {
+      "bg_dark": "#090A0F",
+      "card_bg": "#12141D",
+      "card_border": "#2A2E43",
+      "card_hover_border": "#3B82F6",
+      "cyan_accent": "#06B6D4",
+      "sky_primary": "#38BDF8",
+      "emerald_done": "#10B981",
+      "amber_in_progress": "#F59E0B",
+      "rose_failed": "#F43F5E",
+      "purple_agent": "#A855F7",
+      "terminal_bg": "#06070B"
+    },
+    "forbidden_colors": {
+      "dashboard_forbidden": "#1B93A4",
+      "ai_forbidden": "#7351B7"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-[#12141D]/80 border border-[#2A2E43]/60 shadow-lg shadow-black/40",
+    "terminal_style": "bg-[#06070B] border border-[#2A2E43] rounded-lg p-4 font-mono text-xs text-slate-300 shadow-inner",
+    "active_pulse": "relative after:content-[''] after:absolute after:-inset-0.5 after:bg-sky-500/30 after:rounded-full after:animate-ping",
+    "grid_borders": "border-r border-b border-[#2A2E43]/50"
+  },
+  "layouts": {
+    "grid_mode": "High Density Dashboard Grid",
+    "bento_ratios": {
+      "header_stats": "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6",
+      "main_pipeline_view": "grid grid-cols-1 lg:grid-cols-12 gap-6",
+      "kanban_board": "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4",
+      "ide_split_view": "grid grid-cols-1 lg:grid-cols-12 gap-4 h-[650px]"
+    },
+    "padding": {
+      "page_container": "px-4 sm:px-6 lg:px-8 py-6 space-y-6",
+      "card_internal": "p-5 sm:p-6"
+    }
+  },
+  "components": {
+    "prd_input_screen": {
+      "description": "Upload markdown file or paste PRD text, select project name, select LLM model / sandbox config, and triggering the Start Pipeline CTA button",
+      "data_testid": "prd-input-section"
+    },
+    "live_pipeline_header": {
+      "description": "Displays overall pipeline phase (Architecture → Planning → Coding → Review → Fixing → Done), progress bar with completed_tasks/total_tasks, and active iteration metrics",
+      "data_testid": "pipeline-header-status"
+    },
+    "agent_activity_bar": {
+      "description": "Active agent indicator badges (Architect, Planner, Coder, Reviewer, Fixer) with glowing status animations when active",
+      "data_testid": "agent-activity-indicators"
+    },
+    "kanban_board": {
+      "description": "5 columns (TODO, IN PROGRESS, REVIEW, DONE, FAILED) with task cards displaying ID, title, agent role, capabilities, iteration count, and status badges",
+      "data_testid": "kanban-task-board"
+    },
+    "architecture_spec_viewer": {
+      "description": "JSON viewer displaying generated project structure, modules, tech stack, and dependencies",
+      "data_testid": "architecture-spec-container"
+    },
+    "realtime_log_stream": {
+      "description": "Live virtualized terminal log viewer with timestamped log levels, phase filters, search, and expandable raw LLM responses toggle",
+      "data_testid": "realtime-log-stream"
+    },
+    "generated_project_explorer": {
+      "description": "Directory tree file browser for generated/ folder with syntax-highlighted code editor preview panel",
+      "data_testid": "generated-project-explorer"
+    },
+    "runs_history_drawer": {
+      "description": "Historical runs table with status, duration, task counts, and reload capability",
+      "data_testid": "runs-history-panel"
+    },
+    "config_panel": {
+      "description": "omega.yaml configuration viewer & editor for local Ollama models, max iteration caps, and sandbox execution settings",
+      "data_testid": "config-settings-panel"
+    }
+  },
+  "motion": {
+    "agent_pulse": "transition-all duration-300 ease-in-out hover:scale-[1.02]",
+    "log_scroll": "scroll-smooth overflow-y-auto",
+    "card_hover": "hover:border-sky-500/50 hover:shadow-sky-500/10 transition-all duration-200"
+  },
+  "accessibility": {
+    "contrast_ratio": "Minimum 4.5:1 for normal text against #090A0F and #12141D backgrounds",
+    "focus_states": "focus:ring-2 focus:ring-sky-400 focus:outline-none",
+    "hover_states": "explicit text color set on hover states to prevent dark-on-dark contrast failure"
+  },
+  "instructions_to_main_agent": [
+    "Use standard JavaScript (.js / .jsx) files strictly as setup in frontend project (not .tsx).",
+    "All main views and widgets must include appropriate data-testid attributes for testing compatibility.",
+    "Implement real code file simulation in generated/ file tree with tabbed code viewer.",
+    "Support dark IDE theme with crisp borders (#2A2E43) and vibrant agent status indicators.",
+    "Ensure interactive components use Shadcn/UI primitives customized with dark Tailwind styles.",
+    "Include toast feedback via Sonner for actions like 'Pipeline Started', 'Task Completed', 'File Exported'."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Avoid generic centered layouts and light mode default styles.",
+    "Create depth using visual layering, subtle neon glows, and glassmorphism cards.",
+    "Keep spacing generous (p-6/p-8) within card components to avoid text collisions.",
+    "Do NOT use pure black (#000000); use deep obsidian navy (#090A0F) as background.",
+    "Ensure explicit text colors on hover states (e.g. hover:bg-slate-800 hover:text-sky-400)."
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "summary": "Tested Omega Framework backend (11 pytest cases) and frontend end-to-end. Uncovered a CRITICAL environment interaction bug: uvicorn --reload was watching /app/backend recursively and reloading the server every time the pipeline wrote a file under /app/backend/omega_runs/<id>/generated/, which killed every in-flight run right after T01. Fixed by adding --reload-exclude for omega_runs/*, tests/*, generated/* in the supervisor config. After the fix all 11 backend tests pass in 7.27s and the full UI flow works (task-tracker sample completes 5/5 tasks in ~6s end to end, generated main.py runs, pytest passes).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/omega/runs (pipeline)", "issue": "Generated files under /app/backend/omega_runs/<id>/generated were triggering uvicorn --reload, killing pipeline task after T01. Every API-driven run got stuck in status='coding', completed_tasks=1/5. RCA: supervisor command lacked --reload-exclude. Fix applied at /etc/supervisor/conf.d/supervisord.conf. Recommend main agent make it robust in code (e.g., place RUNS_DIR outside backend package, or add reload-exclude in an entrypoint / uvicorn config).", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "runner background task", "issue": "When the backend process is killed/reloaded mid-run, in-flight runs stay in status 'coding' forever (no reconciliation on startup). One 'notes-app' and several task-tracker rows remain orphaned in DB. Consider marking non-ACTIVE 'coding/planning/pending' runs as 'failed' on startup."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Runs History sheet", "issues": ["React warning: DialogContent missing Description/aria-describedby - accessibility only"]}
+    ]
+  },
+  "test_report_links": ["/app/tests/test_omega_api.py", "/app/test_reports/pytest/omega_results.xml"],
+  "action_items": [
+    "Make the RUNS_DIR / generated-output path stable against dev hot-reload (either move outside /app/backend or bake --reload-exclude into the entrypoint/repo config so environment rebuilds keep working).",
+    "Add startup reconciliation: on FastAPI startup mark any omega_runs with status in {pending,planning,coding} that isn't in ACTIVE as failed with error='orphaned by restart'.",
+    "(Nice-to-have) Add DialogDescription to Runs History Sheet for a11y."
+  ],
+  "critical_code_review_comments": [
+    "server.py: OmegaPipeline is executed as an asyncio task inside uvicorn; provider.complete() and sandbox setup are synchronous requests.post + file writes done from the event loop. Not blocking currently because offline path is instant, but if a real LLM is wired it will block the whole app. Consider run_in_executor for provider calls.",
+    "server.py: no MongoDB index on omega_runs.started_at or omega_logs.(run_id, seq); logs endpoint sorts by seq with $gt filter - fine for now but add compound index.",
+    "server.py: DELETE /api/omega/runs/{id} does not remove the on-disk /app/backend/omega_runs/<id> directory - leaks disk over time.",
+    "pipeline.py + agents.py: _sync_logs draining pattern reorders log seq numbers vs event ordering (visible in output: seq 11 'openai-compat failed' appears AFTER seq 10 'generated'). Cosmetic but confusing.",
+    "providers.py OpenAICompatProvider timeout=min(timeout,120) - if the 9router endpoint ever accepts connections but hangs, this will freeze the event loop for up to 120s per call, per agent, per iteration.",
+    "server.py file endpoint: uses base==target or base in target.parents; works but symlink handling not tested."
+  ],
+  "updated_files": [
+    "/etc/supervisor/conf.d/supervisord.conf (added --reload-exclude flags to backend uvicorn command)",
+    "/app/tests/test_omega_api.py (new pytest suite; moved out of /app/backend/tests to avoid triggering reload)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% (all critical flows verified)"},
+  "test_credentials": "N/A - no auth in app",
+  "seed_data_creation": "Several test runs created in mongo omega_runs (task-tracker/to-stop). Generated projects live at /app/backend/omega_runs/<id>/generated.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend uvicorn now runs with --reload-exclude omega_runs/*, tests/*, generated/*. If you move RUNS_DIR or reintroduce backend tests inside /app/backend/tests, keep that exclude in sync. Backend test file is at /app/tests/test_omega_api.py; run with `cd /app && pytest tests/test_omega_api.py -v`. Full offline pipeline completes 5/5 tasks in ~6-8s.",
+  "rca of the issue": "SYMPTOM: every API-driven run stuck at completed_tasks=1/5, status='coding', no logs past 'T02 -> main.py'. REPRO: POST /api/omega/runs with any PRD; poll GET /api/omega/runs/{id} - never progresses past T01. RCA: /etc/supervisor/conf.d/supervisord.conf launches backend with `uvicorn --reload`. WatchFiles monitors /app/backend recursively. The pipeline's sandbox writes generated files into /app/backend/omega_runs/<id>/generated/core.py after T01 completes. WatchFiles logs 'detected changes in omega_runs/<id>/generated/core.py. Reloading...' which shuts down uvicorn workers, cancelling the pipeline task mid-T02. The shutdown handler also closes the motor client, causing 'Cannot use MongoClient after close' when the cancellation handler in runner() tries to write 'failed' state -> run stays orphaned in 'coding'. FIX (applied): added `--reload-exclude omega_runs/* --reload-exclude tests/* --reload-exclude generated/*` to the uvicorn command, restarted backend. All 11 backend tests + full frontend flow now pass. LONG-TERM FIX (recommended for main agent): move RUNS_DIR outside /app/backend (e.g., /app/data/omega_runs or /var/omega_runs) so hot-reload can never see generated artifacts, and add startup-time reconciliation to mark orphaned runs as failed."
+}

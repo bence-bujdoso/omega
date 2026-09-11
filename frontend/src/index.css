@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    margin: 0;
+    font-family: 'IBM Plex Sans', Inter, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #090A0F;
+    color: #F1F5F9;
+}
+
+code, pre, .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.font-heading {
+    font-family: 'Outfit', 'Cabinet Grotesk', sans-serif;
+}
+
+@layer base {
+    :root {
+        --background: 230 26% 5%;
+        --foreground: 210 40% 96%;
+        --card: 230 26% 9%;
+        --card-foreground: 210 40% 96%;
+        --popover: 230 26% 9%;
+        --popover-foreground: 210 40% 96%;
+        --primary: 199 89% 60%;
+        --primary-foreground: 230 26% 5%;
+        --secondary: 230 20% 15%;
+        --secondary-foreground: 210 40% 96%;
+        --muted: 230 20% 15%;
+        --muted-foreground: 215 20% 65%;
+        --accent: 230 20% 18%;
+        --accent-foreground: 210 40% 96%;
+        --destructive: 0 84% 60%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 230 24% 22%;
+        --input: 230 24% 20%;
+        --ring: 199 89% 60%;
+        --radius: 0.6rem;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+/* thin dark scrollbars */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0d0f16; }
+::-webkit-scrollbar-thumb { background: #2A2E43; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #3B82F6; }
+
+.omega-grid-bg {
+    background-image:
+        linear-gradient(rgba(56,189,248,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56,189,248,0.04) 1px, transparent 1px);
+    background-size: 44px 44px;
+}
+
+.glow-ring::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 9999px;
+    background: rgba(56,189,248,0.35);
+    animation: omega-ping 1.4s cubic-bezier(0,0,0.2,1) infinite;
+    z-index: -1;
+}
+
+@keyframes omega-ping {
+    0% { transform: scale(1); opacity: 0.7; }
+    75%, 100% { transform: scale(1.9); opacity: 0; }
+}
+
+@keyframes omega-fade-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: omega-fade-up 0.35s ease-out both; }

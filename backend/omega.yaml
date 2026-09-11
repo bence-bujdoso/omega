@@ -1,0 +1,38 @@
+dashboard:
+  host: 0.0.0.0
+  port: 8090
+  title: "Omega Pipeline Dashboard"
+
+iteration:
+  auto_fix: true
+  max_global: 30
+  max_per_task: 30
+  require_tests: false
+
+logging:
+  file: omega.log
+  level: DEBUG
+  log_raw_response: true
+
+models:
+  default:
+    api_key_env: OPENROUTER_API_KEY
+    base_url: http://localhost:20128/v1
+    model: 9router-combo
+    provider: openai
+    temperature: 0.3
+    max_tokens: 8192
+  roles:
+    architect: { model: "9router-combo", temperature: 0.3 }
+    coder: { model: "9router-combo", temperature: 0.2 }
+    fixer: { model: "9router-combo", temperature: 0.2 }
+    planner: { model: "9router-combo", temperature: 0.2 }
+    reviewer: { model: "9router-combo", temperature: 0.2 }
+
+project:
+  name: "omega-test"
+  output_dir: ./generated
+
+sandbox:
+  type: process
+  timeout: 120
