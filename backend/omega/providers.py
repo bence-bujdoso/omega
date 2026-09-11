@@ -113,7 +113,85 @@ class HeuristicProvider(ModelProvider):
                 return s[:240]
         return "A generated software project."
 
+    @staticmethod
+    def _is_web(prd: str) -> bool:
+        blob = (prd or "").lower()
+        keywords = ("three.js", "threejs", "webgl", "html", "canvas", "scene",
+                    "shader", "3d", "browser", "css", "javascript", "landing page")
+        return any(k in blob for k in keywords)
+
+    def _stack(self, ctx: dict) -> str:
+        arch = ctx.get("architecture") or {}
+        lang = (arch.get("tech_stack") or {}).get("primary_language")
+        if lang:
+            return "web" if lang.lower() in ("javascript", "typescript", "html") else "python"
+        return "web" if self._is_web(ctx.get("prd", "")) else "python"
+
     def _architecture(self, ctx: dict) -> dict:
+        if self._stack(ctx) == "web":
+            return self._architecture_web(ctx)
+        return self._architecture_python(ctx)
+
+    def _backlog(self, ctx: dict) -> dict:
+        if self._stack(ctx) == "web":
+            return self._backlog_web(ctx)
+        return self._backlog_python(ctx)
+
+    def _architecture_web(self, ctx: dict) -> dict:
+        prd = ctx.get("prd", "")
+        name = self._project_name(prd)
+        return {
+            "project_name": name,
+            "description": self._description(prd),
+            "tech_stack": {
+                "primary_language": "javascript",
+                "framework": "three.js",
+                "database": "none",
+                "dependencies": ["three@0.160.0"],
+                "build_command": "",
+                "test_command": "",
+                "main_module": "index.html",
+            },
+            "file_structure": [
+                {"path": "index.html", "purpose": "Self-contained Three.js scene", "type": "code"},
+                {"path": "README.md", "purpose": "How to open and use the scene", "type": "doc"},
+            ],
+            "modules": [
+                {"name": "scene", "description": "Renderer, camera, lights, Parthenon, hill, instancing", "file": "index.html"},
+                {"name": "controls", "description": "Time / haze / crowd sliders and camera modes", "file": "index.html"},
+            ],
+            "key_dependencies": ["three@0.160.0"],
+            "architecture_notes": (
+                "Single self-contained HTML file. Three.js loaded via a pinned ES module import map. "
+                "Instanced columns, olive trees, city massing and people; time-of-day, haze and crowd "
+                "controls plus postcard/inspect/flyover cameras. DPR clamped below 2."
+            ),
+        }
+
+    def _backlog_web(self, ctx: dict) -> dict:
+        return {
+            "tech_stack": ["javascript", "three.js", "html"],
+            "setup_commands": [],
+            "tasks": [
+                {"id": "T01", "title": "Build the self-contained Three.js scene", "description":
+                 "Create index.html with renderer, sky, sun light, Parthenon (stylobate, instanced "
+                 "columns, entablature, pediments, roof), rocky Acropolis hill and carved steps.",
+                 "filename": "index.html", "status": "TODO", "agent": "coder", "capability": "coding",
+                 "reviews": ["correctness"]},
+                {"id": "T02", "title": "Add environment & instancing", "description":
+                 "Instanced olive trees, distant city massing and robed figures for scale.",
+                 "filename": "index.html", "status": "TODO", "agent": "coder", "capability": "coding", "reviews": []},
+                {"id": "T03", "title": "Wire interactive controls & cameras", "description":
+                 "Time-of-day, haze and crowd sliders plus postcard/inspect/flyover camera modes; clamp DPR.",
+                 "filename": "index.html", "status": "TODO", "agent": "coder", "capability": "coding", "reviews": []},
+                {"id": "T04", "title": "Document the scene", "description":
+                 "Create README.md describing how to open index.html and use the controls.",
+                 "filename": "README.md", "status": "TODO", "agent": "coder", "capability": "coding", "reviews": []},
+            ],
+            "acceptance_report": {},
+        }
+
+    def _architecture_python(self, ctx: dict) -> dict:
         prd = ctx.get("prd", "")
         name = self._project_name(prd)
         return {
@@ -146,7 +224,7 @@ class HeuristicProvider(ModelProvider):
             ),
         }
 
-    def _backlog(self, ctx: dict) -> dict:
+    def _backlog_python(self, ctx: dict) -> dict:
         return {
             "tech_stack": ["python", "pytest"],
             "setup_commands": [],
@@ -175,6 +253,12 @@ class HeuristicProvider(ModelProvider):
         task = ctx.get("task", {}) or {}
         fn = task.get("filename", "main.py")
         name = (ctx.get("architecture", {}) or {}).get("project_name", "omega-project")
+        if fn == "index.html":
+            from .templates import THREEJS_SCENE
+            return "```html:index.html\n" + THREEJS_SCENE.replace("__PROJECT__", name) + "```\n"
+        if fn == "README.md" and self._stack(ctx) == "web":
+            from .templates import WEB_README
+            return "```markdown:README.md\n" + WEB_README.replace("__PROJECT__", name) + "```\n"
         blocks = {
             "core.py": (
                 "python:core.py",

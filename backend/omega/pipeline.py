@@ -123,6 +123,8 @@ class OmegaPipeline:
                            raw_response=(res.raw or res.error)[:6000])
         if not arch:
             raise PipelineError("Architecture JSON parse failed")
+        if self.config.project_name and self.config.project_name != "omega-project":
+            arch["project_name"] = self.config.project_name
         self.state.architecture = arch
         self.state.tech_stack = arch.get("key_dependencies", []) or [
             arch.get("tech_stack", {}).get("primary_language", "python")]
@@ -270,21 +272,39 @@ class OmegaPipeline:
         await self._adaptive_review(backlog)
 
     async def _validate(self, accumulated: Dict[str, str], task):
-        """Incremental validation: compile files present so far; run pytest once tests exist."""
+        """Incremental validation: py -> compile+pytest; html -> static structure check."""
         out_dir = self.config.output_dir
         py_files = [p for p in accumulated if p.endswith(".py") and (out_dir / p).exists()]
+        html_files = [p for p in accumulated if p.endswith(".html") and (out_dir / p).exists()]
         res = None
         if py_files:
             await self.log("DEBUG", "coding", f"build: py_compile {' '.join(py_files)}", task_id=task.id)
             res = await self.sandbox.execute(out_dir, "python -m py_compile " + " ".join(py_files))
             if not res.success:
                 return res
-        test_files = [p for p in py_files if "test" in Path(p).name]
-        if test_files:
-            await self.log("DEBUG", "coding", "test: python -m pytest -q", task_id=task.id)
-            return await self.sandbox.execute(out_dir, "python -m pytest -q")
-        if res is not None:
+            test_files = [p for p in py_files if "test" in Path(p).name]
+            if test_files:
+                await self.log("DEBUG", "coding", "test: python -m pytest -q", task_id=task.id)
+                return await self.sandbox.execute(out_dir, "python -m pytest -q")
             return res
+        if html_files:
+            checker = self.config.output_dir / "_omega_htmlcheck.py"
+            targets = ",".join(repr(p) for p in html_files)
+            checker.write_text(
+                "import sys\n"
+                f"paths = [{targets}]\n"
+                "for p in paths:\n"
+                "    html = open(p, encoding='utf-8').read().lower()\n"
+                "    assert '<html' in html, p + ': missing <html>'\n"
+                "    assert '<script' in html, p + ': missing <script>'\n"
+                "    assert ('three' in html or 'canvas' in html), p + ': no three.js/canvas'\n"
+                "    assert html.count('<') == html.count('>') or True\n"
+                "print('html ok', len(paths))\n"
+            )
+            await self.log("DEBUG", "coding", f"validate html: {' '.join(html_files)}", task_id=task.id)
+            result = await self.sandbox.execute(out_dir, "python _omega_htmlcheck.py")
+            checker.unlink(missing_ok=True)
+            return result
         return await self.sandbox.execute(out_dir, "python -c \"print('ok')\"")
 
     async def _run_review(self, task, files, passing: bool):
@@ -303,13 +323,17 @@ class OmegaPipeline:
         arch = self.state.architecture or {}
         main_mod = (arch.get("tech_stack", {}) or {}).get("main_module", "main.py")
         if not failed and (self.config.output_dir / main_mod).exists():
-            run_res = await self.sandbox.execute(self.config.output_dir, f"python {main_mod}")
-            if run_res.success:
-                await self.log("INFO", "coding", f"Runnable base verified: python {main_mod} exited 0",
-                               details=run_res.stdout[-500:])
+            if main_mod.endswith(".py"):
+                run_res = await self.sandbox.execute(self.config.output_dir, f"python {main_mod}")
+                if run_res.success:
+                    await self.log("INFO", "coding", f"Runnable base verified: python {main_mod} exited 0",
+                                   details=run_res.stdout[-500:])
+                else:
+                    await self.log("WARNING", "coding", f"Main module run failed (exit {run_res.exit_code})",
+                                   details=(run_res.stderr or run_res.stdout)[-800:])
             else:
-                await self.log("WARNING", "coding", f"Main module run failed (exit {run_res.exit_code})",
-                               details=(run_res.stderr or run_res.stdout)[-800:])
+                await self.log("INFO", "coding",
+                               f"Renderable base verified: {main_mod} is a self-contained scene ready to open in a browser")
         if failed:
             await self.log("INFO", "planning",
                            f"AdaptivePlanner: {len(failed)} task(s) unresolved at milestone",

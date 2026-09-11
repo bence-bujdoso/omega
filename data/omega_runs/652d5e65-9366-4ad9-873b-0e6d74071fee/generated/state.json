@@ -1,0 +1,202 @@
+{
+  "project_name": "acropolis-athens",
+  "status": "done",
+  "phase": "done",
+  "active_agent": null,
+  "tech_stack": [
+    "three@0.160.0"
+  ],
+  "file_structure": [
+    {
+      "path": "index.html",
+      "purpose": "Self-contained Three.js scene",
+      "type": "code"
+    },
+    {
+      "path": "README.md",
+      "purpose": "How to open and use the scene",
+      "type": "doc"
+    }
+  ],
+  "architecture": {
+    "project_name": "acropolis-athens",
+    "description": "Create Ancient Athens' Acropolis with a recognizable Parthenon and surrounding rock plateau, in warm Mediterranean light.",
+    "tech_stack": {
+      "primary_language": "javascript",
+      "framework": "three.js",
+      "database": "none",
+      "dependencies": [
+        "three@0.160.0"
+      ],
+      "build_command": "",
+      "test_command": "",
+      "main_module": "index.html"
+    },
+    "file_structure": [
+      {
+        "path": "index.html",
+        "purpose": "Self-contained Three.js scene",
+        "type": "code"
+      },
+      {
+        "path": "README.md",
+        "purpose": "How to open and use the scene",
+        "type": "doc"
+      }
+    ],
+    "modules": [
+      {
+        "name": "scene",
+        "description": "Renderer, camera, lights, Parthenon, hill, instancing",
+        "file": "index.html"
+      },
+      {
+        "name": "controls",
+        "description": "Time / haze / crowd sliders and camera modes",
+        "file": "index.html"
+      }
+    ],
+    "key_dependencies": [
+      "three@0.160.0"
+    ],
+    "architecture_notes": "Single self-contained HTML file. Three.js loaded via a pinned ES module import map. Instanced columns, olive trees, city massing and people; time-of-day, haze and crowd controls plus postcard/inspect/flyover cameras. DPR clamped below 2."
+  },
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Build the self-contained Three.js scene",
+      "description": "Create index.html with renderer, sky, sun light, Parthenon (stylobate, instanced columns, entablature, pediments, roof), rocky Acropolis hill and carved steps.",
+      "filename": "index.html",
+      "status": "DONE",
+      "agent": "coder",
+      "capability": "coding",
+      "reviews": [
+        "correctness"
+      ],
+      "iterations": 1,
+      "error": null
+    },
+    {
+      "id": "T02",
+      "title": "Add environment & instancing",
+      "description": "Instanced olive trees, distant city massing and robed figures for scale.",
+      "filename": "index.html",
+      "status": "DONE",
+      "agent": "coder",
+      "capability": "coding",
+      "reviews": [],
+      "iterations": 1,
+      "error": null
+    },
+    {
+      "id": "T03",
+      "title": "Wire interactive controls & cameras",
+      "description": "Time-of-day, haze and crowd sliders plus postcard/inspect/flyover camera modes; clamp DPR.",
+      "filename": "index.html",
+      "status": "DONE",
+      "agent": "coder",
+      "capability": "coding",
+      "reviews": [],
+      "iterations": 1,
+      "error": null
+    },
+    {
+      "id": "T04",
+      "title": "Document the scene",
+      "description": "Create README.md describing how to open index.html and use the controls.",
+      "filename": "README.md",
+      "status": "DONE",
+      "agent": "coder",
+      "capability": "coding",
+      "reviews": [],
+      "iterations": 1,
+      "error": null
+    }
+  ],
+  "current_task_idx": 3,
+  "completed_tasks": 4,
+  "total_tasks": 4,
+  "iteration_count": 4,
+  "prompt_stats": {
+    "architect": [
+      {
+        "version": "v1",
+        "runs": 1,
+        "successes": 1,
+        "disabled": false,
+        "success_rate": 1.0,
+        "created_at": "2026-09-11T09:09:39.442794+00:00",
+        "updated_at": "2026-09-11T09:09:39.848302+00:00"
+      }
+    ],
+    "planner": [
+      {
+        "version": "v1",
+        "runs": 1,
+        "successes": 1,
+        "disabled": false,
+        "success_rate": 1.0,
+        "created_at": "2026-09-11T09:09:39.442807+00:00",
+        "updated_at": "2026-09-11T09:09:40.256158+00:00"
+      }
+    ],
+    "coder": [
+      {
+        "version": "v1",
+        "runs": 4,
+        "successes": 4,
+        "disabled": false,
+        "success_rate": 1.0,
+        "created_at": "2026-09-11T09:09:39.442812+00:00",
+        "updated_at": "2026-09-11T09:09:41.790255+00:00"
+      }
+    ],
+    "reviewer": [
+      {
+        "version": "v1",
+        "runs": 1,
+        "successes": 1,
+        "disabled": false,
+        "success_rate": 1.0,
+        "created_at": "2026-09-11T09:09:39.442816+00:00",
+        "updated_at": "2026-09-11T09:09:40.636664+00:00"
+      }
+    ],
+    "fixer": [
+      {
+        "version": "v1",
+        "runs": 0,
+        "successes": 0,
+        "disabled": false,
+        "success_rate": 1.0,
+        "created_at": "2026-09-11T09:09:39.442820+00:00",
+        "updated_at": "2026-09-11T09:09:39.442822+00:00"
+      }
+    ],
+    "tester": [
+      {
+        "version": "v1",
+        "runs": 0,
+        "successes": 0,
+        "disabled": false,
+        "success_rate": 1.0,
+        "created_at": "2026-09-11T09:09:39.442824+00:00",
+        "updated_at": "2026-09-11T09:09:39.442826+00:00"
+      }
+    ],
+    "debugger": [
+      {
+        "version": "v1",
+        "runs": 0,
+        "successes": 0,
+        "disabled": false,
+        "success_rate": 1.0,
+        "created_at": "2026-09-11T09:09:39.442828+00:00",
+        "updated_at": "2026-09-11T09:09:39.442829+00:00"
+      }
+    ]
+  },
+  "started_at": "2026-09-11T09:09:39.442868+00:00",
+  "finished_at": "2026-09-11T09:09:41.812982+00:00",
+  "error": null
+}

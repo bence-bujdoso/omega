@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
@@ -198,6 +199,20 @@ async def get_file(run_id: str, path: str):
     if not target.exists() or not target.is_file():
         raise HTTPException(status_code=404, detail="file not found")
     return {"path": path, "content": target.read_text(errors="replace")}
+
+
+@api_router.get("/omega/runs/{run_id}/raw")
+async def get_raw_file(run_id: str, path: str):
+    base = _run_output_dir(run_id).resolve()
+    target = (base / path).resolve()
+    if base != target and base not in target.parents:
+        raise HTTPException(status_code=400, detail="invalid path")
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="file not found")
+    content = target.read_text(errors="replace")
+    if path.endswith((".html", ".htm")):
+        return HTMLResponse(content=content)
+    return PlainTextResponse(content=content)
 
 
 @api_router.delete("/omega/runs/{run_id}")

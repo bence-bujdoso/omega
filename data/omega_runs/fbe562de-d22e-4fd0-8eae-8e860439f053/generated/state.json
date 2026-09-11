@@ -1,0 +1,244 @@
+{
+  "project_name": "omega-project",
+  "status": "done",
+  "phase": "done",
+  "active_agent": null,
+  "tech_stack": [
+    "pytest"
+  ],
+  "file_structure": [
+    {
+      "path": "core.py",
+      "purpose": "Core domain logic",
+      "type": "code"
+    },
+    {
+      "path": "main.py",
+      "purpose": "Entry point / CLI",
+      "type": "code"
+    },
+    {
+      "path": "test_core.py",
+      "purpose": "Unit tests for core logic",
+      "type": "test"
+    },
+    {
+      "path": "requirements.txt",
+      "purpose": "Python dependencies",
+      "type": "config"
+    },
+    {
+      "path": "README.md",
+      "purpose": "Project documentation",
+      "type": "doc"
+    }
+  ],
+  "architecture": {
+    "project_name": "omega-project",
+    "description": "Create Ancient Athens' Acropolis with a recognizable Parthenon and surrounding rock plateau, in warm Mediterranean light.",
+    "tech_stack": {
+      "primary_language": "python",
+      "framework": "stdlib",
+      "database": "none",
+      "dependencies": [
+        "pytest"
+      ],
+      "build_command": "python -m py_compile core.py main.py",
+      "test_command": "python -m pytest -q",
+      "main_module": "main.py"
+    },
+    "file_structure": [
+      {
+        "path": "core.py",
+        "purpose": "Core domain logic",
+        "type": "code"
+      },
+      {
+        "path": "main.py",
+        "purpose": "Entry point / CLI",
+        "type": "code"
+      },
+      {
+        "path": "test_core.py",
+        "purpose": "Unit tests for core logic",
+        "type": "test"
+      },
+      {
+        "path": "requirements.txt",
+        "purpose": "Python dependencies",
+        "type": "config"
+      },
+      {
+        "path": "README.md",
+        "purpose": "Project documentation",
+        "type": "doc"
+      }
+    ],
+    "modules": [
+      {
+        "name": "core",
+        "description": "Domain model and operations",
+        "file": "core.py"
+      },
+      {
+        "name": "main",
+        "description": "Runnable entry point",
+        "file": "main.py"
+      }
+    ],
+    "key_dependencies": [
+      "pytest"
+    ],
+    "architecture_notes": "Single-package Python project. core.py holds a Store domain object and helper functions; main.py wires them into a runnable demo; test_core.py validates behaviour."
+  },
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Implement core domain logic",
+      "description": "Create core.py with add/subtract helpers and a Store class managing items.",
+      "filename": "core.py",
+      "status": "DONE",
+      "agent": "coder",
+      "capability": "coding",
+      "reviews": [],
+      "iterations": 1,
+      "error": null
+    },
+    {
+      "id": "T02",
+      "title": "Build runnable entry point",
+      "description": "Create main.py that imports core and prints a working demo.",
+      "filename": "main.py",
+      "status": "DONE",
+      "agent": "coder",
+      "capability": "coding",
+      "reviews": [],
+      "iterations": 1,
+      "error": null
+    },
+    {
+      "id": "T03",
+      "title": "Write unit tests for core",
+      "description": "Create test_core.py with pytest tests covering the Store and helpers.",
+      "filename": "test_core.py",
+      "status": "DONE",
+      "agent": "tester",
+      "capability": "testing",
+      "reviews": [
+        "correctness"
+      ],
+      "iterations": 1,
+      "error": null
+    },
+    {
+      "id": "T04",
+      "title": "Declare dependencies",
+      "description": "Create requirements.txt listing pytest.",
+      "filename": "requirements.txt",
+      "status": "DONE",
+      "agent": "coder",
+      "capability": "coding",
+      "reviews": [],
+      "iterations": 1,
+      "error": null
+    },
+    {
+      "id": "T05",
+      "title": "Document the project",
+      "description": "Create README.md describing how to run and test.",
+      "filename": "README.md",
+      "status": "DONE",
+      "agent": "coder",
+      "capability": "coding",
+      "reviews": [],
+      "iterations": 1,
+      "error": null
+    }
+  ],
+  "current_task_idx": 4,
+  "completed_tasks": 5,
+  "total_tasks": 5,
+  "iteration_count": 5,
+  "prompt_stats": {
+    "architect": [
+      {
+        "version": "v1",
+        "runs": 1,
+        "successes": 1,
+        "disabled": false,
+        "success_rate": 1.0,
+        "created_at": "2026-09-11T09:01:54.441315+00:00",
+        "updated_at": "2026-09-11T09:01:54.845357+00:00"
+      }
+    ],
+    "planner": [
+      {
+        "version": "v1",
+        "runs": 1,
+        "successes": 1,
+        "disabled": false,
+        "success_rate": 1.0,
+        "created_at": "2026-09-11T09:01:54.441326+00:00",
+        "updated_at": "2026-09-11T09:01:55.253640+00:00"
+      }
+    ],
+    "coder": [
+      {
+        "version": "v1",
+        "runs": 4,
+        "successes": 4,
+        "disabled": false,
+        "success_rate": 1.0,
+        "created_at": "2026-09-11T09:01:54.441330+00:00",
+        "updated_at": "2026-09-11T09:01:57.683393+00:00"
+      }
+    ],
+    "reviewer": [
+      {
+        "version": "v1",
+        "runs": 1,
+        "successes": 1,
+        "disabled": false,
+        "success_rate": 1.0,
+        "created_at": "2026-09-11T09:01:54.441333+00:00",
+        "updated_at": "2026-09-11T09:01:56.718292+00:00"
+      }
+    ],
+    "fixer": [
+      {
+        "version": "v1",
+        "runs": 0,
+        "successes": 0,
+        "disabled": false,
+        "success_rate": 1.0,
+        "created_at": "2026-09-11T09:01:54.441337+00:00",
+        "updated_at": "2026-09-11T09:01:54.441339+00:00"
+      }
+    ],
+    "tester": [
+      {
+        "version": "v1",
+        "runs": 1,
+        "successes": 1,
+        "disabled": false,
+        "success_rate": 1.0,
+        "created_at": "2026-09-11T09:01:54.441341+00:00",
+        "updated_at": "2026-09-11T09:01:56.427825+00:00"
+      }
+    ],
+    "debugger": [
+      {
+        "version": "v1",
+        "runs": 0,
+        "successes": 0,
+        "disabled": false,
+        "success_rate": 1.0,
+        "created_at": "2026-09-11T09:01:54.441345+00:00",
+        "updated_at": "2026-09-11T09:01:54.441346+00:00"
+      }
+    ]
+  },
+  "started_at": "2026-09-11T09:01:54.441383+00:00",
+  "finished_at": "2026-09-11T09:01:57.957202+00:00",
+  "error": null
+}
