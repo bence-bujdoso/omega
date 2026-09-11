@@ -87,6 +87,7 @@ class OmegaPipeline:
             await self._phase_architecture()
             backlog = await self._phase_planning()
             await self._phase_coding(backlog)
+            await self._phase_refinement()
             self.state.status = "done" if self.state.error is None else "failed"
             self.state.phase = "done"
             self.state.active_agent = None
@@ -315,6 +316,78 @@ class OmegaPipeline:
         n = len((review or {}).get("issues", []))
         await self.log("INFO", "coding", f"Reviewer on {task.id}: {status} ({n} issues)", task_id=task.id)
         return review or {}
+
+    def _read_generated(self) -> Dict[str, str]:
+        base = self.config.output_dir
+        exts = (".py", ".html", ".htm", ".js", ".css", ".md", ".txt", ".json")
+        ignore = {"__pycache__", ".pytest_cache"}
+        files: Dict[str, str] = {}
+        if not base.exists():
+            return files
+        for p in sorted(base.rglob("*")):
+            if p.is_file() and p.name != "state.json" and p.name != "_omega_htmlcheck.py" \
+                    and p.suffix in exts and not any(part in ignore for part in p.parts):
+                try:
+                    files[str(p.relative_to(base))] = p.read_text(errors="replace")
+                except Exception:
+                    pass
+        return files
+
+    async def _phase_refinement(self):
+        """Post-build quality loop: Reviewer critiques the whole product, Fixer improves, re-validate."""
+        n = int(self.config.iteration.get("refine_iterations", 0) or 0)
+        failed = [t for t in self.state.tasks if t.get("status") == "FAILED"]
+        if n <= 0 or failed:
+            return
+        self.state.status = "refining"
+        self.state.phase = "refinement"
+        await self.log("INFO", "refinement", f"Starting {n} quality refinement pass(es)")
+        await self._emit_state()
+
+        synthetic = Task(id="REFINE", title="Overall product quality review",
+                         filename="*", agent="reviewer", capability="review",
+                         reviews=["quality"])
+        reviewer = self.factory.get("reviewer")
+        fixer = self.factory.get("fixer")
+
+        for pass_no in range(1, n + 1):
+            self.state.active_agent = "reviewer"
+            await self.log("INFO", "refinement", f"Pass {pass_no}/{n}: reviewing product quality",
+                           iteration=pass_no)
+            await self._emit_state()
+            await asyncio.sleep(0.35)
+
+            files = self._read_generated()
+            review, _ = await asyncio.to_thread(reviewer.review, synthetic.model_dump(), files)
+            issues = (review or {}).get("issues", [])
+
+            if not issues:
+                await self.log("INFO", "refinement",
+                               f"Pass {pass_no}/{n}: reviewer found no further improvements",
+                               iteration=pass_no, details=(review or {}).get("summary", ""))
+                self.state.iteration_count += 1
+                await self._emit_state()
+                continue
+
+            self.state.active_agent = "fixer"
+            await self.log("WARNING", "refinement",
+                           f"Pass {pass_no}/{n}: applying {len(issues)} improvement(s)",
+                           iteration=pass_no, details=issues)
+            arts, _ = await asyncio.to_thread(fixer.fix, synthetic.model_dump(), files, issues)
+            if arts:
+                for a in arts:
+                    files[a.path] = a.content
+                self.sandbox.setup(self.config.output_dir, files)
+                result = await self._validate(files, synthetic)
+                status = "validated" if result.success else f"validation failed (exit {result.exit_code})"
+                await self.log("INFO", "refinement", f"Pass {pass_no}/{n}: improvements {status}",
+                               iteration=pass_no)
+            self.state.iteration_count += 1
+            await self._emit_state()
+
+        await self.log("INFO", "refinement", "Refinement complete")
+        self.state.active_agent = None
+        await self._emit_state()
 
     async def _adaptive_review(self, backlog: KanbanBacklog):
         failed = [t for t in self.state.tasks if t.get("status") == "FAILED"]

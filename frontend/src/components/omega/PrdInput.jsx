@@ -14,6 +14,7 @@ export default function PrdInput({ onStart, runs, onOpenRun, health }) {
   const [sandbox, setSandbox] = useState("process");
   const [maxPerTask, setMaxPerTask] = useState(30);
   const [maxGlobal, setMaxGlobal] = useState(30);
+  const [refineIterations, setRefineIterations] = useState(2);
   const [busy, setBusy] = useState(false);
 
   const deriveName = (text) => {
@@ -30,6 +31,7 @@ export default function PrdInput({ onStart, runs, onOpenRun, health }) {
       sandbox_type: sandbox,
       max_per_task: Number(maxPerTask),
       max_global: Number(maxGlobal),
+      refine_iterations: Number(refineIterations),
     });
     setBusy(false);
   };
@@ -132,6 +134,29 @@ export default function PrdInput({ onStart, runs, onOpenRun, health }) {
                 data-testid="max-global-input"
               />
             </div>
+          </div>
+
+          <div className="space-y-1.5 rounded-lg border border-purple-500/30 bg-purple-500/5 p-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-purple-300 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> Refinement passes
+              </label>
+              <span className="text-sm font-mono text-purple-300" data-testid="refine-value">{refineIterations}</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              step="1"
+              value={refineIterations}
+              onChange={(e) => setRefineIterations(e.target.value)}
+              className="w-full accent-purple-500"
+              data-testid="refine-iterations-slider"
+            />
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              After the build, the Reviewer + Fixer polish the whole product this many times to lift
+              overall quality. 0 = ship as built.
+            </p>
           </div>
 
           <div className="text-[11px] font-mono text-slate-500 flex items-center gap-2 pt-1">

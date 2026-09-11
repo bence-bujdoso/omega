@@ -8,6 +8,7 @@ iteration:
   max_global: 30
   max_per_task: 30
   require_tests: false
+  refine_iterations: 2
 
 logging:
   file: omega.log

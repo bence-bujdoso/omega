@@ -8,7 +8,7 @@ import PrdInput from "./PrdInput";
 import RunView from "./RunView";
 import RunsHistory from "./RunsHistory";
 
-const ACTIVE_STATES = ["pending", "planning", "coding"];
+const ACTIVE_STATES = ["pending", "planning", "coding", "refining"];
 
 export default function Dashboard() {
   const [health, setHealth] = useState(null);

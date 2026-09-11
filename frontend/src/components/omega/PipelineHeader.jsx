@@ -3,7 +3,7 @@ import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 import { PHASES, STATUS_META, fmtDuration } from "./meta";
 
-const ACTIVE = ["pending", "planning", "coding"];
+const ACTIVE = ["pending", "planning", "coding", "refining"];
 
 export default function PipelineHeader({ run, onStop }) {
   if (!run) {

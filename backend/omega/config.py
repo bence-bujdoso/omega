@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     "dashboard": {"host": "0.0.0.0", "port": 8090, "title": "Omega Pipeline Dashboard"},
-    "iteration": {"auto_fix": True, "max_global": 30, "max_per_task": 30, "require_tests": False},
+    "iteration": {"auto_fix": True, "max_global": 30, "max_per_task": 30, "require_tests": False, "refine_iterations": 2},
     "logging": {"file": "omega.log", "level": "DEBUG", "log_raw_response": True},
     "models": {
         "default": {

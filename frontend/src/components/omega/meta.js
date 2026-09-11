@@ -11,6 +11,7 @@ export const PHASES = [
   { key: "architecture", label: "Architecture" },
   { key: "planning", label: "Planning" },
   { key: "coding", label: "Coding" },
+  { key: "refinement", label: "Refinement" },
   { key: "done", label: "Done" },
 ];
 
@@ -18,6 +19,7 @@ export const STATUS_META = {
   pending: { label: "Pending", color: "#94A3B8", bg: "rgba(148,163,184,0.12)" },
   planning: { label: "Planning", color: "#06B6D4", bg: "rgba(6,182,212,0.12)" },
   coding: { label: "Coding", color: "#F59E0B", bg: "rgba(245,158,11,0.12)" },
+  refining: { label: "Refining", color: "#A855F7", bg: "rgba(168,85,247,0.14)" },
   done: { label: "Done", color: "#10B981", bg: "rgba(16,185,129,0.14)" },
   failed: { label: "Failed", color: "#F43F5E", bg: "rgba(244,63,94,0.14)" },
 };

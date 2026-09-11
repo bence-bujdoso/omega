@@ -49,6 +49,7 @@ class StartRunRequest(BaseModel):
     sandbox_type: str = "process"
     max_per_task: int = 30
     max_global: int = 30
+    refine_iterations: int = 2
 
 
 class StatusCheck(BaseModel):
@@ -95,6 +96,7 @@ async def start_run(req: StartRunRequest):
     cfg.data["sandbox"]["type"] = req.sandbox_type
     cfg.data["iteration"]["max_per_task"] = req.max_per_task
     cfg.data["iteration"]["max_global"] = req.max_global
+    cfg.data["iteration"]["refine_iterations"] = req.refine_iterations
 
     run_doc = {
         "id": run_id,
