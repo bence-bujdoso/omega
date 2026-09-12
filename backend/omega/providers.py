@@ -335,7 +335,19 @@ class HeuristicProvider(ModelProvider):
                 "## Test\n\n```bash\npython -m pytest -q\n```\n" % name,
             ),
         }
-        header, content = blocks.get(fn, ("python:" + fn, "# %s\nprint('generated %s')\n" % (fn, fn)))
+        if fn in blocks:
+            header, content = blocks[fn]
+        elif fn.endswith(".py"):
+            mod = fn.rsplit("/", 1)[-1][:-3].replace("-", "_")
+            header = "python:" + fn
+            content = (
+                '"""Helper module %s."""\n\n\n'
+                "def describe():\n"
+                '    return "helper module %s for __PROJECT__"\n' % (mod, mod)
+            ).replace("__PROJECT__", name)
+        else:
+            header = "text:" + fn
+            content = "%s for %s\n" % (fn, name)
         return "```%s\n%s```\n" % (header, content)
 
     def _review(self, ctx: dict) -> dict:
